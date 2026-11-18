@@ -118,7 +118,7 @@ export function mapTscDiagnostic(code: string): MappedDiagnostic | null {
   if (TSC_FILTERED_CODES.has(code)) {
     return null;
   }
-  if (code === '2367' || code === '2531' || code === '2532') {
+  if (code === '2367' || code === '2531' || code === '2532' || code === '18048') {
     return { severity: 'major', category: 'bug', confidence: 0.75 };
   }
   return { severity: 'minor', category: 'bug', confidence: 0.65 };
