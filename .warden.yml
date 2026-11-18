@@ -1,0 +1,22 @@
+# PR-Warden's own review configuration (dogfooding: the warden workflow reviews this repo's PRs).
+
+categories: [bug, security, performance, maintainability, style]
+min_severity: minor
+
+ignore_paths:
+  - node_modules/**
+  - dist/**
+  - coverage/**
+  - bench/fixtures/** # intentional planted bugs for the self-evaluation benchmark
+  - pnpm-lock.yaml
+
+custom_rules:
+  - "Never suggest renaming exported public API without explicitly flagging the breaking change."
+  - "Treat any change to the emit_findings schema, the scoring logic, or the fixture manifests as high-risk: it affects the published precision/recall benchmark."
+  - "Do not propose adding runtime dependencies without weighing CLI install weight for a globally-installed tool."
+
+max_inline_comments: 20
+
+provider:
+  preset: gemini
+  model: gemini-2.5-flash
