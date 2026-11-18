@@ -1,0 +1,20 @@
+{
+  "name": "sql-injection",
+  "description": "Tiny orders service that serves user and order lookups over HTTP through a query helper and a mock database client.",
+  "bugs": [
+    {
+      "file": "src/users.js",
+      "start_line": 6,
+      "end_line": 6,
+      "category": "security",
+      "description": "findUser builds its SELECT statement by concatenating the caller-supplied id directly into the SQL string instead of using a parameterized query, enabling SQL injection."
+    },
+    {
+      "file": "src/orders.js",
+      "start_line": 6,
+      "end_line": 6,
+      "category": "security",
+      "description": "getOrdersForUser concatenates the userId value into the SQL statement instead of binding it as a query parameter, enabling SQL injection."
+    }
+  ]
+}
