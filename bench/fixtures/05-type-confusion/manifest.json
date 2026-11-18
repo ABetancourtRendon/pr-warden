@@ -1,0 +1,20 @@
+{
+  "name": "type-confusion",
+  "description": "Request validation layer that gates on the API version and resolves feature flags from parsed query parameters.",
+  "bugs": [
+    {
+      "file": "src/validate.js",
+      "start_line": 4,
+      "end_line": 4,
+      "category": "bug",
+      "description": "isSupportedVersion compares version with loose equality, so the string '2' from a query parameter is coerced to the number 2 and silently accepted."
+    },
+    {
+      "file": "src/features.js",
+      "start_line": 15,
+      "end_line": 15,
+      "category": "bug",
+      "description": "isEnabled compares a boolean flag against the string 'true' with strict equality, so the true branch is dead and every enabled flag reports false."
+    }
+  ]
+}
