@@ -1,0 +1,20 @@
+{
+  "name": "unhandled-promise",
+  "description": "Notification worker that loads its JSON configuration and fans out notifications to every user on startup.",
+  "bugs": [
+    {
+      "file": "src/notify.js",
+      "start_line": 12,
+      "end_line": 12,
+      "category": "bug",
+      "description": "notifyAll invokes the async sendNotification inside forEach without awaiting or attaching rejection handling, leaving floating promises whose rejections are silently dropped."
+    },
+    {
+      "file": "src/config.js",
+      "start_line": 14,
+      "end_line": 14,
+      "category": "bug",
+      "description": "load returns readConfigFile(path).then(parseConfig) with no rejection handler anywhere in the chain, so a missing or unreadable config file becomes an unhandled promise rejection."
+    }
+  ]
+}
