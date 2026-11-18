@@ -1,16 +1,56 @@
 # PR-Warden
 
-> An AI code reviewer that reviews pull requests like a strict senior engineer - and publishes its own precision/recall benchmark so you know how much to trust it.
+> An AI code reviewer that reviews pull requests like a strict senior engineer — and publishes its own precision/recall benchmark so you know how much to trust it.
+
+<p align="center">
+  <img src="docs/demo.gif" alt="PR-Warden reviewing a pull request in the terminal: a findings table with severity, file:line and confidence, detail blocks with a suggested fix diff, and a token/cost footer" width="880">
+</p>
+
+<p align="center"><em>A real review run — the recorded fixture PR <code>#42</code> reviewed with <code>--provider mock</code> (offline).<br>
+The CRITICAL and MAJOR findings come from the LLM pass, the MINOR one from biome; the pipeline merged, deduped and costed them.</em></p>
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%E2%89%A5%2020-339933)](package.json)
+[![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF)](.github/workflows/ci.yml)
 
 ## The problem
 
-AI code reviewers promise thoroughness, but nobody can tell you how often they are *wrong*. When a human senior engineer reviews code, you can roughly calibrate how much to trust their verdicts; when an LLM does it, the failure modes are silent: hallucinated findings waste your time, and missed real bugs give you false confidence.
+AI code reviewers promise thoroughness, but nobody can tell you how often they are *wrong*. With a human senior engineer you can roughly calibrate how much to trust their verdicts; when an LLM does the reviewing, the failure modes are silent: hallucinated findings waste your time, and missed real bugs give you false confidence.
 
-PR-Warden attacks this from two sides. First, it combines deterministic static analysis (biome, tsc, eslint, ruff) with an LLM reasoning pass that must emit structured, severity-classified findings through a schema - so its output is measurable, not vibes. Second - and this is the part no public code reviewer ships - it benchmarks *itself*: a harness of fixture projects with planted bugs (SQL injection, off-by-one, unhandled promises, race conditions, type confusion) is run through the exact same review pipeline, and the results are scored into precision, recall, and F1. Where real numbers belong, the repo refuses to publish unverified ones: `pnpm bench` measures them with your own API key in one command.
+PR-Warden attacks this from two sides. First, it combines deterministic static analysis (biome, tsc, eslint, ruff) with an LLM reasoning pass that must emit structured, severity-classified findings through a schema — so its output is measurable, not vibes. Second — the part no public code reviewer ships — it benchmarks *itself*: a harness of fixture projects with planted bugs (SQL injection, off-by-one, unhandled promises, race conditions, type confusion) is run through the exact same review pipeline, and the results are scored into precision, recall, and F1. Where real numbers belong, the repo refuses to publish unverified ones: `pnpm bench` measures them with your own API key in one command.
 
-## Quickstart
+## How it works
 
-Prerequisites: Node 20+ and pnpm 9 (`corepack enable`, or `npm install -g pnpm@9`), plus an API key for any OpenAI-compatible endpoint. The default preset is Google Gemini - free keys from [Google AI Studio](https://aistudio.google.com) - and OpenRouter works out of the box too.
+The architecture, in four lines:
+
+1. **Fetch** — the changed files, diff hunks, and full new-file contents come off the PR through the GitHub API (no auth needed for public repos).
+2. **Analyze** — every changed file gets a deterministic static pass (biome, tsc, eslint, ruff, run in an isolated workspace) *and* a single LLM pass that must call the `emit_findings` tool with a zod-validated, severity-classified payload — anything malformed is dropped, never guessed.
+3. **Merge & report** — static and LLM findings on overlapping lines collapse into one corroborated finding (higher severity wins); the result is a terminal table with confidence and cost per run, or `--json`, and `--post` publishes one grouped summary comment plus inline comments on the PR.
+4. **Benchmark** — the same pipeline (no shortcuts) replays fixture projects with ten planted bugs and scores itself against the manifests into precision / recall / F1, so the trust question has an answer you can re-measure.
+
+```mermaid
+flowchart LR
+    PR["GitHub PR"] -->|"pulls.get / listFiles / getContent"| FETCH["Fetch diff + file contents"]
+    FETCH --> STATIC["Static pass<br/>biome, tsc, eslint, ruff"]
+    FETCH --> LLM["LLM pass<br/>emit_findings tool call"]
+    STATIC --> MERGE["Merge + dedup<br/>(file + line overlap)"]
+    LLM --> MERGE
+    MERGE --> OUT["Terminal table<br/>--json output"]
+    MERGE --> POST["PR review comment<br/>(one summary + inline)"]
+    OUT --> COST["Token usage +<br/>cost estimate"]
+
+    subgraph BENCH ["Self-evaluation benchmark"]
+        FIX["5 fixture projects<br/>10 planted bugs"] --> RUNB["pnpm bench<br/>(same pipeline)"]
+        RUNB --> SCORE["Scorer: precision / recall / F1<br/>vs manifest.json"]
+        SCORE --> BENCHMD["docs/BENCH.md"]
+    end
+```
+
+Details worth knowing: the static pass lints a temp copy of the changed files with PR-Warden's own tool config (reviews never depend on the target repo's tooling); the LLM pass is one request with a hard size cap, one corrective retry on schema violations, then graceful degradation to static-only; and the diff hunk walker is in-house because parse-diff drops content on multi-hunk patches.
+
+## Install
+
+Prerequisites: Node 20+ and pnpm 9 (`corepack enable`, or `npm install -g pnpm@9`), plus an API key for any OpenAI-compatible endpoint. The default preset is Google Gemini — free keys from [Google AI Studio](https://aistudio.google.com) — and OpenRouter works out of the box too.
 
 Your first review in 60 seconds (from source):
 
@@ -51,33 +91,19 @@ And any repository installs the reviewer with five lines of workflow YAML:
 
 (The surrounding workflow needs the usual `on: pull_request` trigger and `permissions: pull-requests: write`; see [action.yml](action.yml).)
 
-## How it works
+## Tech stack
 
-```mermaid
-flowchart LR
-    PR["GitHub PR"] -->|"pulls.get / listFiles / getContent"| FETCH["Fetch diff + file contents"]
-    FETCH --> STATIC["Static pass<br/>biome, tsc, eslint, ruff"]
-    FETCH --> LLM["LLM pass<br/>emit_findings tool call"]
-    STATIC --> MERGE["Merge + dedup<br/>(file + line overlap)"]
-    LLM --> MERGE
-    MERGE --> OUT["Terminal table<br/>--json output"]
-    MERGE --> POST["PR review comment<br/>(one summary + inline)"]
-    OUT --> COST["Token usage +<br/>cost estimate"]
-
-    subgraph BENCH ["Self-evaluation benchmark"]
-        FIX["5 fixture projects<br/>10 planted bugs"] --> RUNB["pnpm bench<br/>(same pipeline)"]
-        RUNB --> SCORE["Scorer: precision / recall / F1<br/>vs manifest.json"]
-        SCORE --> BENCHMD["docs/BENCH.md"]
-    end
-```
-
-The pipeline:
-
-1. **Fetch.** The CLI pulls the PR metadata, changed-file list, diff hunks, and (for text files) the full new-file content. Public repos need no auth; `GITHUB_TOKEN` raises rate limits and is required to post reviews.
-2. **Static pass.** Changed files are copied into an isolated temp workspace and linted with every tool available there: biome (bundled as a runtime dependency), tsc and eslint (when resolvable in the environment), ruff (when the binary is on PATH). Linter output is normalized into the common Finding format with severity/category mapping.
-3. **LLM pass.** One request through a thin OpenAI-compatible adapter (system prompt: strict senior reviewer; user prompt: numbered file contents and hunks). The model must call the `emit_findings` tool; the payload is validated against a zod schema. One retry on schema violation, then graceful degradation to static-only findings.
-4. **Merge and dedup.** Static and LLM findings on the same file with overlapping line ranges collapse into one finding - the higher severity wins, ties go to the LLM finding, and cross-source merges are marked corroborated with a confidence bump.
-5. **Report.** A terminal table or `--json`, with token usage and estimated cost per run. With `--post`, a single GitHub review API call publishes one grouped summary comment (severity table plus details) and inline comments on findings whose lines are part of the diff.
+| Layer | Choice | Why |
+|---|---|---|
+| Language & runtime | TypeScript 5 (strict), Node ≥ 20, ESM | One codebase for CLI, Action, and library entry points |
+| CLI | [commander](https://github.com/tj/commander.js) | Typed flags with custom parsers and `--fail-on` exit codes |
+| GitHub API | [@octokit/rest](https://github.com/octokit/octokit.js) | Pull requests, file contents, review submission |
+| LLM | [openai](https://github.com/openai/openai-node) against any OpenAI-compatible endpoint | One thin adapter covers Gemini, OpenRouter, OpenAI, Anthropic's compat endpoint, Groq — no per-vendor SDKs |
+| Schema & validation | [zod](https://github.com/colinhacks/zod) | The `emit_findings` payload and config values are validated, not trusted |
+| Static analysis | [@biomejs/biome](https://github.com/biomejs/biome) (bundled), tsc / eslint (when resolvable), ruff (when on PATH) | Deterministic findings that survive provider outages |
+| Config | [yaml](https://github.com/eemeli/yaml) | Per-repo `.warden.yml` with env-var overrides |
+| Build & test | [tsup](https://github.com/egoist/tsup), [vitest](https://github.com/vitest-dev/vitest) | No live LLM calls in tests — CI asserts recorded mock outputs |
+| CI | GitHub Actions | Lint, typecheck, tests, and the deterministic benchmark scoring |
 
 ## Configuration
 
@@ -92,7 +118,7 @@ Repository-level configuration lives in `.warden.yml` (see [this repo's own file
 | `max_inline_comments` | `20` | Cap on inline PR comments (the rest live in the summary) |
 | `provider.preset` / `provider.base_url` / `provider.model` | gemini | Provider selection; environment variables win over the file |
 
-Environment variables (`env`, or a gitignored `.env` file - see [.env.example](.env.example)):
+Environment variables (`env`, or a gitignored `.env` file — see [.env.example](.env.example)):
 
 | Variable | Meaning |
 |---|---|
@@ -122,7 +148,7 @@ Methodology (full details in [docs/BENCH.md](docs/BENCH.md)):
 - A finding matches a bug when file, category, and line range (with a 2-line tolerance) line up. Precision counts matched findings over eligible findings; recall counts matched bugs over planted bugs; F1 is the harmonic mean. Static findings count the same as LLM findings.
 - CI runs the scoring harness against recorded MockProvider outputs and asserts the metrics byte-for-byte, proving the scorer is deterministic.
 
-Real results table (filled in by one command with your own key - PR-Warden deliberately does not ship numbers it has not measured):
+Real results table (filled in by one command with your own key — PR-Warden deliberately does not ship numbers it has not measured):
 
 | Metric | Value |
 |---|---|
@@ -149,11 +175,11 @@ The run rewrites [docs/BENCH.md](docs/BENCH.md) with measured precision/recall/F
 ## Design decisions and trade-offs
 
 - **One thin provider adapter, not five SDKs.** Everything speaks the OpenAI-compatible chat-completions shape, so Gemini, OpenRouter, OpenAI, Anthropic's compatibility endpoint, and Groq work through the same tested client and the same mock. The cost: endpoints that do not support forced tool calls (`tool_choice`) will degrade to static-only instead of being special-cased.
-- **Determinism before marketing.** Tests and CI never make live LLM calls; the benchmark scorer is asserted against recorded mock outputs in CI. The trade-off: the shipped BENCH.md real-results table starts empty until you measure it with your key - that is deliberate.
+- **Determinism before marketing.** Tests and CI never make live LLM calls; the benchmark scorer is asserted against recorded mock outputs in CI. The trade-off: the shipped BENCH.md real-results table starts empty until you measure it with your key — that is deliberate.
 - **Static analysis in an isolated workspace.** Changed files are linted in a temp directory with PR-Warden's own linter config, so reviews are reproducible and never depend on the target repo's tooling. The trade-off: project-specific lint rules (e.g. an eslint plugin the target repo uses) are not applied.
 - **Opportunistic tool coverage.** biome is bundled; tsc and eslint passes activate only when those packages happen to be resolvable in the runtime environment; ruff activates only when the binary is on PATH. Missing tools are skipped with a note, never faked.
 - **An in-house diff walker.** parse-diff 0.12 (the obvious dependency) drops content after a second hunk header in multi-hunk patches, so PR-Warden ships its own 100-line unified-diff walker with tests.
-- **Dedup by file + line overlap.** Two findings on the same code region collapse into one (higher severity wins; cross-source merges are marked corroborated). The trade-off: two genuinely distinct issues on the same line would be merged away - a rare case we accept for output cleanliness.
+- **Dedup by file + line overlap.** Two findings on the same code region collapse into one (higher severity wins; cross-source merges are marked corroborated). The trade-off: two genuinely distinct issues on the same line would be merged away — a rare case we accept for output cleanliness.
 - **One LLM call per review.** Batching the whole PR into a single prompt (with a hard size cap) keeps cost and latency low; very large PRs get truncated file listings rather than many calls.
 - **Retry once, then degrade.** Schema-violating LLM output gets exactly one corrective retry; a second failure downgrades the run to static-only findings with a clear warning instead of failing the review.
 
@@ -162,7 +188,7 @@ The run rewrites [docs/BENCH.md](docs/BENCH.md) with measured precision/recall/F
 - No dynamic verification: findings come from static analysis and LLM reasoning; nothing is executed.
 - LLM line numbers can drift by a line or two (the benchmark's 2-line matching tolerance exists precisely because of this).
 - One LLM call per review means very large PRs see truncated prompts.
-- No automatic backoff/retry on provider transport errors (429/5xx) - a failed provider degrades the run to static-only.
+- No automatic backoff/retry on provider transport errors (429/5xx) — a failed provider degrades the run to static-only.
 - The benchmark is small (10 planted bugs, 5 fixtures): it is directional evidence, not a scientific evaluation; the methodology is documented so you can rerun and extend it.
 - Token pricing in the cost estimates is a hardcoded table of approximate list prices; unknown models report no cost estimate.
 - Python findings require ruff on PATH; TypeScript type-checking of reviewed files only runs where typescript is resolvable.
