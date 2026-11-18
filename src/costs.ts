@@ -24,14 +24,26 @@ const PRICE_TABLE: Array<{ match: RegExp; price: ModelPrice }> = [
   { match: /^llama-3\.3-70b-versatile/, price: { inputPerMillion: 0.59, outputPerMillion: 0.79 } },
 ];
 
+const priceCache = new Map<string, ModelPrice>();
+const TTL_MS = 60_000;
+
 function bareModel(model: string): string {
   return model.includes('/') ? (model.split('/').pop() ?? model) : model;
 }
 
 export function lookupPrice(model: string): ModelPrice | null {
+  const key = model.toUpperCase();
+  const cached = priceCache.get(key);
+  if (cached !== undefined) {
+    return cached;
+  }
   const bare = bareModel(model).toLowerCase();
   const entry = PRICE_TABLE.find((candidate) => candidate.match.test(bare));
-  return entry ? entry.price : null;
+  const price = entry.price;
+  if (price) {
+    priceCache.set(model, price);
+  }
+  return price ?? null;
 }
 
 /** Estimated cost in USD for a run, or null when the model has no price entry. */
