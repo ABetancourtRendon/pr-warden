@@ -1,0 +1,76 @@
+{
+  "overall": {
+    "tp": 7,
+    "fp": 2,
+    "fn": 3,
+    "precision": 0.7778,
+    "recall": 0.7,
+    "f1": 0.7368
+  },
+  "perCategory": [
+    {
+      "category": "bug",
+      "tp": 5,
+      "fp": 1,
+      "fn": 3,
+      "precision": 0.8333,
+      "recall": 0.625,
+      "f1": 0.7143
+    },
+    {
+      "category": "performance",
+      "tp": 0,
+      "fp": 1,
+      "fn": 0,
+      "precision": 0,
+      "recall": 0,
+      "f1": 0
+    },
+    {
+      "category": "security",
+      "tp": 2,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    }
+  ],
+  "fixtures": [
+    {
+      "name": "01-sql-injection",
+      "planted": 2,
+      "found": 2,
+      "tp": 2,
+      "fp": 1
+    },
+    {
+      "name": "02-off-by-one",
+      "planted": 2,
+      "found": 1,
+      "tp": 1,
+      "fp": 0
+    },
+    {
+      "name": "03-unhandled-promise",
+      "planted": 2,
+      "found": 2,
+      "tp": 2,
+      "fp": 0
+    },
+    {
+      "name": "04-race-condition",
+      "planted": 2,
+      "found": 1,
+      "tp": 1,
+      "fp": 0
+    },
+    {
+      "name": "05-type-confusion",
+      "planted": 2,
+      "found": 1,
+      "tp": 1,
+      "fp": 1
+    }
+  ]
+}
