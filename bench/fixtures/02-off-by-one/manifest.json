@@ -1,0 +1,20 @@
+{
+  "name": "off-by-one",
+  "description": "Reporting utilities that paginate transaction lists and total their amounts into a plain-text report.",
+  "bugs": [
+    {
+      "file": "src/sum.js",
+      "start_line": 5,
+      "end_line": 5,
+      "category": "bug",
+      "description": "The loop condition uses i <= nums.length, so the final iteration reads nums[nums.length] (undefined) and corrupts the total with NaN; the bound should be i < nums.length."
+    },
+    {
+      "file": "src/paginate.js",
+      "start_line": 5,
+      "end_line": 5,
+      "category": "bug",
+      "description": "end is computed as start + size + 1, so items.slice returns one item more than the requested page size."
+    }
+  ]
+}
