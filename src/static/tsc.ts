@@ -26,7 +26,10 @@ function buildTsconfig(files: string[]): string {
     compilerOptions: {
       noEmit: true,
       skipLibCheck: true,
-      strict: false,
+      // Strict mode matters: with strictNullChecks off, the entire null-safety
+      // bug class (TS18048 "possibly undefined" & friends) is invisible to
+      // this pass — while the target repo's own CI would catch it.
+      strict: true,
       target: 'es2022',
       module: 'esnext',
       moduleResolution: 'bundler',
