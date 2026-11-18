@@ -1,0 +1,66 @@
+name: 'PR-Warden'
+description: 'Self-evaluating AI code reviewer - static analysis + LLM reasoning, with a measured precision/recall benchmark.'
+branding:
+  icon: 'eye'
+  color: 'green'
+inputs:
+  github_token:
+    description: 'Token with pull-requests:write (pass the workflow github.token or a PAT)'
+    required: true
+  pr_number:
+    description: 'Pull request number to review'
+    required: true
+  repo:
+    description: 'owner/name - defaults to the GITHUB_REPOSITORY env var'
+    required: false
+    default: ''
+  llm_base_url:
+    description: 'OpenAI-compatible endpoint (default: Google Gemini preset)'
+    required: false
+    default: 'https://generativelanguage.googleapis.com/v1beta/openai/'
+  llm_api_key:
+    description: 'LLM API key (omit for static-only review)'
+    required: false
+    default: ''
+  llm_model:
+    description: 'Model name at the endpoint'
+    required: false
+    default: 'gemini-2.5-flash'
+  warden_version:
+    description: 'pr-warden npm version to run'
+    required: false
+    default: 'latest'
+  fail_on:
+    description: 'Exit non-zero when findings at this severity or higher exist (critical|major|minor|info, empty = never)'
+    required: false
+    default: ''
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    - name: Run PR-Warden review
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        LLM_BASE_URL: ${{ inputs.llm_base_url }}
+        LLM_API_KEY: ${{ inputs.llm_api_key }}
+        LLM_MODEL: ${{ inputs.llm_model }}
+      run: |
+        set -euo pipefail
+        REPO="${{ inputs.repo }}"
+        if [ -z "${REPO}" ]; then
+          REPO="${GITHUB_REPOSITORY}"
+        fi
+        ARGS=(review --repo "${REPO}" --pr "${{ inputs.pr_number }}")
+        FAIL_ON="${{ inputs.fail_on }}"
+        if [ -n "${FAIL_ON}" ]; then
+          ARGS+=(--fail-on "${FAIL_ON}")
+        fi
+        if [ -n "${LLM_API_KEY}" ]; then
+          ARGS+=(--post)
+        else
+          echo "LLM_API_KEY is empty - the review runs static-only and posting is skipped."
+        fi
+        npx -y "pr-warden@${{ inputs.warden_version }}" "${ARGS[@]}"
