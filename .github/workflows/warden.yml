@@ -1,0 +1,32 @@
+name: warden
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: corepack enable
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Review this PR with PR-Warden
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: https://generativelanguage.googleapis.com/v1beta/openai/
+          LLM_MODEL: gemini-2.5-flash
+        run: |
+          PR="${{ github.event.pull_request.number }}"
+          if [ -z "${LLM_API_KEY}" ]; then
+            echo "LLM_API_KEY secret not set - running static-only review without posting."
+            node dist/cli.js review --repo "${GITHUB_REPOSITORY}" --pr "${PR}"
+          else
+            node dist/cli.js review --repo "${GITHUB_REPOSITORY}" --pr "${PR}" --post
+          fi
