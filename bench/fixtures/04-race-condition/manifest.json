@@ -1,0 +1,20 @@
+{
+  "name": "race-condition",
+  "description": "Read-through cache and request counter backed by async storage, wired together by a small service layer.",
+  "bugs": [
+    {
+      "file": "src/cache.js",
+      "start_line": 10,
+      "end_line": 13,
+      "category": "bug",
+      "description": "Cache.get performs a check-then-act sequence across an await: concurrent calls for the same key all observe the miss and each invoke the loader, so the check and the fill are not atomic (cache stampede)."
+    },
+    {
+      "file": "src/counter.js",
+      "start_line": 10,
+      "end_line": 11,
+      "category": "bug",
+      "description": "increment reads the current value and writes current + 1 in two separate awaited steps, a non-atomic read-modify-write that loses updates when increments overlap."
+    }
+  ]
+}
