@@ -1,0 +1,104 @@
+{
+  "01-sql-injection": [
+    {
+      "file": "src/users.js",
+      "start_line": 6,
+      "end_line": 6,
+      "severity": "major",
+      "category": "security",
+      "title": "SQL injection in findUser",
+      "detail": "findUser concatenates the caller-supplied id directly into the SQL statement. An attacker who controls id can append clauses and read arbitrary rows. Use a parameterized query (WHERE id = ?) with bound values.",
+      "confidence": 0.9,
+      "suggested_fix_diff": "--- a/src/users.js\n+++ b/src/users.js\n@@ -6,1 +6,1 @@\n-  const sql = 'SELECT id, name FROM users WHERE id = ' + id;\n+  const sql = 'SELECT id, name FROM users WHERE id = ?';"
+    },
+    {
+      "file": "src/orders.js",
+      "start_line": 6,
+      "end_line": 6,
+      "severity": "critical",
+      "category": "security",
+      "title": "SQL injection in getOrdersForUser",
+      "detail": "getOrdersForUser builds its SQL by concatenating userId into the statement, allowing injection through the user path segment. Bind userId as a query parameter instead of concatenating it.",
+      "confidence": 0.95
+    },
+    {
+      "file": "src/server.js",
+      "start_line": 24,
+      "end_line": 26,
+      "severity": "minor",
+      "category": "performance",
+      "title": "Sequential awaits lengthen the request path",
+      "detail": "The request branches await one database round trip at a time; batch or cache the lookups to shorten the hot path.",
+      "confidence": 0.4
+    }
+  ],
+  "02-off-by-one": [
+    {
+      "file": "src/sum.js",
+      "start_line": 5,
+      "end_line": 5,
+      "severity": "major",
+      "category": "bug",
+      "title": "Loop reads one element past the end",
+      "detail": "The loop condition uses i <= nums.length, so the final iteration reads nums[nums.length] (undefined) and corrupts the total with NaN. Use i < nums.length.",
+      "confidence": 0.85,
+      "suggested_fix_diff": "--- a/src/sum.js\n+++ b/src/sum.js\n@@ -5,1 +5,1 @@\n-  for (let i = 0; i <= nums.length; i++) {\n+  for (let i = 0; i < nums.length; i++) {"
+    }
+  ],
+  "03-unhandled-promise": [
+    {
+      "file": "src/notify.js",
+      "start_line": 12,
+      "end_line": 12,
+      "severity": "major",
+      "category": "bug",
+      "title": "Floating promise inside forEach",
+      "detail": "notifyAll invokes the async sendNotification inside forEach without awaiting or attaching rejection handling, so a rejected notification is silently dropped. Await each send (or use Promise.allSettled) and handle failures.",
+      "confidence": 0.8
+    },
+    {
+      "file": "src/config.js",
+      "start_line": 14,
+      "end_line": 14,
+      "severity": "major",
+      "category": "bug",
+      "title": "No rejection handler for the config chain",
+      "detail": "load returns readConfigFile(path).then(parseConfig) with no .catch anywhere, so a missing or unreadable config file becomes an unhandled promise rejection that crashes the worker at startup.",
+      "confidence": 0.8
+    }
+  ],
+  "04-race-condition": [
+    {
+      "file": "src/cache.js",
+      "start_line": 10,
+      "end_line": 13,
+      "severity": "major",
+      "category": "bug",
+      "title": "Check-then-act cache fill is not atomic",
+      "detail": "Cache.get checks the store, awaits the loader, then writes back. Concurrent gets for the same key all observe the miss and each invoke the loader (a cache stampede). Serialize fills per key (for example with an in-flight promise map).",
+      "confidence": 0.75
+    }
+  ],
+  "05-type-confusion": [
+    {
+      "file": "src/validate.js",
+      "start_line": 4,
+      "end_line": 4,
+      "severity": "major",
+      "category": "bug",
+      "title": "Loose equality accepts the string '2'",
+      "detail": "isSupportedVersion compares version with ==, so the string '2' (parsed query params are strings) is coerced to the number 2 and silently accepted. Use strict equality and an explicit type check.",
+      "confidence": 0.9
+    },
+    {
+      "file": "src/router.js",
+      "start_line": 19,
+      "end_line": 19,
+      "severity": "minor",
+      "category": "bug",
+      "title": "Feature flag resolution skips validation",
+      "detail": "handleQuery passes the raw feature name straight into lookupFlag without validating it exists, which can yield undefined downstream. Validate the parameter before resolving the flag.",
+      "confidence": 0.3
+    }
+  ]
+}
