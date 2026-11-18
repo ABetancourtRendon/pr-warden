@@ -1,0 +1,71 @@
+{
+  "name": "pr-warden",
+  "version": "0.1.0",
+  "description": "Self-evaluating AI code reviewer: static analysis + LLM reasoning with a planted-bug precision/recall benchmark.",
+  "keywords": [
+    "ai",
+    "code-review",
+    "llm",
+    "github-action",
+    "typescript",
+    "agents"
+  ],
+  "license": "MIT",
+  "author": "ABetancourtRendon",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ABetancourtRendon/pr-warden"
+  },
+  "bugs": {
+    "url": "https://github.com/ABetancourtRendon/pr-warden/issues"
+  },
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=20"
+  },
+  "type": "module",
+  "bin": {
+    "pr-warden": "bin/pr-warden.js"
+  },
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE",
+    "action.yml"
+  ],
+  "scripts": {
+    "dev": "tsx src/cli.ts",
+    "build": "tsup",
+    "lint": "biome check .",
+    "format": "biome check --write .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "bench": "tsx src/bench/run.ts",
+    "bench:ci": "tsx src/bench/run.ts --provider mock --assert bench/recordings/expected.json",
+    "bench:freeze": "tsx src/bench/run.ts --provider mock --freeze bench/recordings/expected.json"
+  },
+  "dependencies": {
+    "@biomejs/biome": "^2.6.8",
+    "@octokit/rest": "^22.0.1",
+    "commander": "^15.1.0",
+    "openai": "^7.59.0",
+    "yaml": "^2.9.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "tsup": "^9.0.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.1.0"
+  }
+}
